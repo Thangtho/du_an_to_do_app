@@ -368,6 +368,79 @@
   function closeModal()  { document.getElementById('overlay').classList.remove('open'); }
   function backdropClose(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
 
+  /* Lưu task – gọi POST/PUT /api/tasks (Lương) */
+  async function saveTask() {
+    const id    = document.getElementById('editId').value;
+    const title = document.getElementById('fTitle').value.trim();
+    if (!title) { toast('Vui lòng nhập tiêu đề', 'error'); return; }
+
+    const dlVal = document.getElementById('fDeadline').value;
+    const payload = {
+      title,
+      description: document.getElementById('fDesc').value.trim(),
+      status:      document.getElementById('fStatus').value,
+      priority:    document.getElementById('fPriority').value,
+      deadline:    dlVal ? new Date(dlVal).toISOString() : null
+    };
+    try {
+      const res  = await fetch(id ? `/api/tasks/${id}` : '/api/tasks', {
+        method:  id ? 'PUT' : 'POST',
+        headers: headers(),
+        body:    JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast(data.message);
+        closeModal();
+        loadTasks(); loadStats();
+      } else { toast(data.error || 'Lỗi', 'error'); }
+    } catch { toast('Lỗi kết nối', 'error'); }
+  }
+
+  /* Đánh dấu hoàn thành – PUT /api/tasks/:id (Lương) */
+  async function markDone(id) {
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: 'PUT', headers: headers(),
+      body: JSON.stringify({ status: 'done' })
+    });
+    if (res.ok) { toast('Hoàn thành! 🎉'); loadTasks(); loadStats(); }
+  }
+
+  async function markTodo(id) {
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: 'PUT', headers: headers(),
+      body: JSON.stringify({ status: 'todo' })
+    });
+    if (res.ok) { loadTasks(); loadStats(); }
+  }
+
+  /* Xóa task – DELETE /api/tasks/:id (Lương) */
+  async function delTask(id) {
+    if (!confirm('Xóa công việc này?')) return;
+    const res  = await fetch(`/api/tasks/${id}`, { method:'DELETE', headers:headers() });
+    const data = await res.json();
+    if (res.ok) { toast(data.message); loadTasks(); loadStats(); }
+  }
+
+  /* Init */
+  if (!localStorage.getItem('token')) {
+    window.location.href = '/';
+  } else {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    document.getElementById('navUser').textContent = user.username || '...';
+    loadStats();
+    loadTasks();
+    // Auto-refresh check quá hạn mỗi 60s
+    setInterval(() => { loadStats(); loadTasks(); }, 60000);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'n' && !document.getElementById('overlay').classList.contains('open')
+        && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+      openModal();
+    }
+  });
 </script>
 </body>
 </html>
