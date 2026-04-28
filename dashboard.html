@@ -270,6 +270,104 @@
     }
   }
 
+  /* ── Thuật toán lọc trạng thái & auto-check quá hạn (Minh) ── */
+  function checkOverdue(task) {
+    /* Tự động kiểm tra quá hạn phía FE (backup cho BE) */
+    if (!task.deadline || task.status === 'done') return false;
+    return new Date() > new Date(task.deadline);
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return null;
+    const d = new Date(iso);
+    const p = n => String(n).padStart(2,'0');
+    return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+
+  const SL = { todo:'Chưa làm', in_progress:'Đang làm', done:'Hoàn thành' };
+  const PL = { low:'Thấp', medium:'Trung bình', high:'Cao' };
+
+  function render() {
+    const grid = document.getElementById('taskGrid');
+    if (!tasks.length) {
+      grid.innerHTML = `<div class="empty-state"><div class="ei">📋</div><p>Không có công việc. Bấm <strong>＋ Tạo công việc</strong> để bắt đầu!</p></div>`;
+      return;
+    }
+
+    /* Áp dụng thuật toán lọc trạng thái tại FE */
+    let filtered = tasks;
+    if (currentFilter !== 'all') {
+      if (currentFilter === 'overdue') {
+        filtered = tasks.filter(t => t.is_overdue || checkOverdue(t));
+      } else {
+        filtered = tasks.filter(t => t.status === currentFilter);
+      }
+    }
+
+    grid.innerHTML = filtered.map((t, i) => {
+      const overdue = t.is_overdue || checkOverdue(t);
+      const dl      = fmtDate(t.deadline);
+      const donebtn = t.status !== 'done'
+        ? `<button class="btn-a btn-done" onclick="markDone(${t.id})">✓ Xong</button>`
+        : `<button class="btn-a"          onclick="markTodo(${t.id})">↩ Hoàn tác</button>`;
+
+      return `<div class="task-card ${overdue ? 'ov-card' : ''} ${t.status==='done' ? 'done-task':''}" style="animation-delay:${i*.05}s">
+        <div class="task-card-top">
+          <div class="task-title">${esc(t.title)}</div>
+          ${overdue
+            ? `<span class="badge b-overdue">Quá hạn</span>`
+            : `<span class="badge b-${t.status.replace('_','')}">${SL[t.status]||t.status}</span>`
+          }
+        </div>
+        ${t.description ? `<div class="task-desc">${esc(t.description)}</div>` : ''}
+        <div class="task-meta">
+          <span class="badge b-${t.priority}">${PL[t.priority]||t.priority}</span>
+          ${dl ? `<span class="task-dl ${overdue?'urgent':''}">📅 ${dl}</span>` : ''}
+        </div>
+        <div class="task-actions">
+          ${donebtn}
+          <button class="btn-a btn-edit" onclick="openEdit(${t.id})">✎ Sửa</button>
+          <button class="btn-a btn-del"  onclick="delTask(${t.id})">✕ Xóa</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render(); // Lọc tại FE (không cần gọi lại API mỗi lần)
+  }
+
+  /* MODAL */
+  function openModal(task = null) {
+    document.getElementById('editId').value    = task ? task.id : '';
+    document.getElementById('mTitle').textContent = task ? 'CHỈNH SỬA' : 'TẠO CÔNG VIỆC MỚI';
+    document.getElementById('fTitle').value    = task?.title       || '';
+    document.getElementById('fDesc').value     = task?.description || '';
+    document.getElementById('fStatus').value   = task?.status      || 'todo';
+    document.getElementById('fPriority').value = task?.priority    || 'medium';
+    if (task?.deadline) {
+      const d = new Date(task.deadline);
+      const p = n => String(n).padStart(2,'0');
+      document.getElementById('fDeadline').value =
+        `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    } else {
+      document.getElementById('fDeadline').value = '';
+    }
+    document.getElementById('overlay').classList.add('open');
+    setTimeout(() => document.getElementById('fTitle').focus(), 100);
+  }
+
+  function openEdit(id) { openModal(tasks.find(t => t.id === id)); }
+  function closeModal()  { document.getElementById('overlay').classList.remove('open'); }
+  function backdropClose(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
+
 </script>
 </body>
 </html>
