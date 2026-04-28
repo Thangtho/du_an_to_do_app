@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskFlow – Dashboard</title>
+<!--
+  dashboard.html – 
+  Nhiệm vụ: UI Dashboard hiển thị Ta`c trạng thái,
+            tự động check quá hạn + call API CRUD 
+-->
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f14; --surface:#161920; --card:#1e2230; --card2:#232840; --border:#2a2f42;
+    --accent:#5b7fff; --accent2:#a78bfa;
+    --success:#34d399; --warning:#fbbf24; --danger:#f87171; --info:#38bdf8;
+    --text:#e8eaf0; --muted:#8892aa;
+    --mono:'Space Mono',monospace; --sans:'DM Sans',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
+
+  nav {
+    background:var(--surface);border-bottom:1px solid var(--border);
+    padding:0 24px;display:flex;align-items:center;justify-content:space-between;
+    height:60px;position:sticky;top:0;z-index:100;
+  }
+  .nav-logo{font-family:var(--mono);font-size:16px;letter-spacing:2px;display:flex;align-items:center;gap:10px;}
+  .dot{width:8px;height:8px;background:var(--accent);border-radius:50%;animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .nav-right{display:flex;align-items:center;gap:16px;}
+  .user-badge{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px;color:var(--muted);}
+  .user-badge strong{color:var(--text);}
+  .btn-logout{background:none;border:1px solid var(--border);color:var(--muted);padding:7px 14px;border-radius:8px;font-family:var(--sans);font-size:13px;cursor:pointer;transition:all .2s;}
+  .btn-logout:hover{border-color:var(--danger);color:var(--danger);}
+
+  .main{max-width:1200px;margin:0 auto;padding:28px 24px;}
+
+  /* STATS */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px;}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;overflow:hidden;position:relative;transition:transform .2s;}
+  .stat-card:hover{transform:translateY(-3px);}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+  .stat-card.total::before    {background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .stat-card.todo::before     {background:var(--info);}
+  .stat-card.inprogress::before{background:var(--warning);}
+  .stat-card.done::before     {background:var(--success);}
+  .stat-card.overdue::before  {background:var(--danger);}
+  .stat-num{font-family:var(--mono);font-size:36px;font-weight:700;line-height:1;margin-bottom:6px;}
+  .stat-card.total .stat-num    {color:var(--accent);}
+  .stat-card.todo .stat-num     {color:var(--info);}
+  .stat-card.inprogress .stat-num{color:var(--warning);}
+  .stat-card.done .stat-num     {color:var(--success);}
+  .stat-card.overdue .stat-num  {color:var(--danger);}
+  .stat-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+
+  /* TOOLBAR */
+  .toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+  .toolbar-title{font-family:var(--mono);font-size:13px;color:var(--muted);}
+  .filter-btn{padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;font-family:var(--sans);cursor:pointer;transition:all .2s;}
+  .filter-btn:hover{border-color:var(--accent);color:var(--text);}
+  .filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .filter-btn.ov.active{background:var(--danger);border-color:var(--danger);}
+  .btn-new{margin-left:auto;padding:10px 20px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;color:#fff;font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px;}
+  .btn-new:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(91,127,255,.35);}
+
+  /* TASK CARDS */
+  .task-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
+  .task-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;transition:all .25s;animation:fadeUp .4s ease both;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .task-card:hover{border-color:var(--accent);box-shadow:0 8px 32px rgba(91,127,255,.1);transform:translateY(-2px);}
+  .task-card.ov-card{border-color:rgba(248,113,113,.4);}
+  .task-card.ov-card:hover{border-color:var(--danger);box-shadow:0 8px 32px rgba(248,113,113,.15);}
+  .task-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;}
+  .task-title{font-size:15px;font-weight:600;line-height:1.4;flex:1;}
+  .task-card.done-task .task-title{text-decoration:line-through;color:var(--muted);}
+  .task-desc{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .task-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .task-dl{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;}
+  .task-dl.urgent{color:var(--danger);}
+
+  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;font-family:var(--mono);}
+  .b-todo      {background:rgba(56,189,248,.15);color:var(--info);}
+  .b-inprogress{background:rgba(251,191,36,.15);color:var(--warning);}
+  .b-done      {background:rgba(52,211,153,.15);color:var(--success);}
+  .b-overdue   {background:rgba(248,113,113,.15);color:var(--danger);}
+  .b-high  {background:rgba(248,113,113,.12);color:var(--danger);}
+  .b-medium{background:rgba(251,191,36,.12);color:var(--warning);}
+  .b-low   {background:rgba(52,211,153,.12);color:var(--success);}
+
+  .task-actions{display:flex;gap:8px;border-top:1px solid var(--border);padding-top:14px;}
+  .btn-a{flex:1;padding:7px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:12px;cursor:pointer;transition:all .2s;font-family:var(--sans);font-weight:500;}
+  .btn-a:hover{background:var(--card2);color:var(--text);}
+  .btn-done:hover{border-color:var(--success);color:var(--success);}
+  .btn-edit:hover{border-color:var(--accent);color:var(--accent);}
+  .btn-del:hover{border-color:var(--danger);color:var(--danger);}
+
+  .empty-state{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--muted);}
+  .empty-state .ei{font-size:48px;margin-bottom:16px;opacity:.5;}
+
+  /* MODAL */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px;}
+  .overlay.open{display:flex;}
+  .modal{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;animation:mIn .3s cubic-bezier(.16,1,.3,1);}
+  @keyframes mIn{from{opacity:0;transform:scale(.92) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+  .modal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+  .modal-ttl{font-family:var(--mono);font-size:14px;letter-spacing:1px;}
+  .btn-x{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+  .btn-x:hover{border-color:var(--danger);color:var(--danger);}
+
+  .form-group{margin-bottom:18px;}
+  label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;font-family:var(--mono);}
+  input,textarea,select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .2s;}
+  textarea{min-height:80px;resize:vertical;}
+  input:focus,textarea:focus,select:focus{border-color:var(--accent);}
+  select option{background:var(--card);}
+  input::placeholder,textarea::placeholder{color:var(--muted);opacity:.6;}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  .modal-ft{display:flex;gap:12px;margin-top:24px;}
+  .btn-cancel{flex:1;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:var(--sans);font-size:14px;cursor:pointer;transition:all .2s;}
+  .btn-cancel:hover{border-color:var(--text);color:var(--text);}
+  .btn-save{flex:2;padding:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;color:#fff;font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;}
+  .btn-save:hover{box-shadow:0 6px 20px rgba(91,127,255,.35);}
+
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px 20px;font-size:14px;z-index:999;display:none;align-items:center;gap:10px;animation:slideR .3s ease;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.4);}
+  @keyframes slideR{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+  .toast.show{display:flex;}
+  .toast.success{border-color:rgba(52,211,153,.4);}
+  .toast.error{border-color:rgba(248,113,113,.4);}
+
+  ::-webkit-scrollbar{width:6px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><div class="dot"></div>TASKFLOW</div>
+  <div class="nav-right">
+    <div class="user-badge">Xin chào, <strong id="navUser">...</strong></div>
+    <button class="btn-logout" onclick="logout()">Đăng xuất</button>
+  </div>
+</nav>
+
+<div class="main">
+  <!-- Thống kê – data từ GET /api/tasks/stats  -->
+  <div class="stats-grid">
+    <div class="stat-card total">   <div class="stat-num" id="sTotal">0</div><div class="stat-label">Tổng</div></div>
+    <div class="stat-card todo">    <div class="stat-num" id="sTodo">0</div> <div class="stat-label">Chưa làm</div></div>
+    <div class="stat-card inprogress"><div class="stat-num" id="sIP">0</div> <div class="stat-label">Đang làm</div></div>
+    <div class="stat-card done">    <div class="stat-num" id="sDone">0</div><div class="stat-label">Hoàn thành</div></div>
+    <div class="stat-card overdue"> <div class="stat-num" id="sOv">0</div>  <div class="stat-label">Quá hạn</div></div>
+  </div>
+
+  <!-- Toolbar lọc – gọi GET /api/tasks?status=...  -->
+  <div class="toolbar">
+    <span class="toolbar-title">LỌC:</span>
+    <button class="filter-btn active" onclick="setFilter('all',this)">Tất cả</button>
+    <button class="filter-btn"        onclick="setFilter('todo',this)">Chưa làm</button>
+    <button class="filter-btn"        onclick="setFilter('in_progress',this)">Đang làm</button>
+    <button class="filter-btn"        onclick="setFilter('done',this)">Hoàn thành</button>
+    <button class="filter-btn ov"     onclick="setFilter('overdue',this)">⚠ Quá hạn</button>
+    <button class="btn-new"           onclick="openModal()">＋ Tạo công việc</button>
+  </div>
+
+  <div class="task-grid" id="taskGrid">
+    <div class="empty-state"><div class="ei">📋</div><p>Đang tải...</p></div>
+  </div>
+</div>
+
+<!-- Modal tạo / sửa task -->
+<div class="overlay" id="overlay" onclick="backdropClose(event)">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-ttl" id="mTitle">TẠO CÔNG VIỆC MỚI</div>
+      <button class="btn-x" onclick="closeModal()">×</button>
+    </div>
+    <input type="hidden" id="editId">
+    <div class="form-group">
+      <label>Tiêu đề *</label>
+      <input type="text" id="fTitle" placeholder="Nhập tiêu đề công việc...">
+    </div>
+    <div class="form-group">
+      <label>Mô tả</label>
+      <textarea id="fDesc" placeholder="Mô tả chi tiết (không bắt buộc)..."></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Trạng thái</label>
+        <select id="fStatus">
+          <option value="todo">Chưa làm</option>
+          <option value="in_progress">Đang làm</option>
+          <option value="done">Hoàn thành</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Ưu tiên</label>
+        <select id="fPriority">
+          <option value="low">Thấp</option>
+          <option value="medium" selected>Trung bình</option>
+          <option value="high">Cao</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Deadline</label>
+      <input type="datetime-local" id="fDeadline">
+    </div>
+    <div class="modal-ft">
+      <button class="btn-cancel" onclick="closeModal()">Hủy</button>
+      <button class="btn-save"   onclick="saveTask()">Lưu công việc</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+/* ── Nguyễn Đức Minh – logic dashboard: lọc trạng thái, check quá hạn ── */
+
+  let currentFilter = 'all';
+  let tasks = [];
+
+  const headers = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+  });
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = '/';
+  }
+
+  function toast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.innerHTML = `<span>${type === 'success' ? '✓' : '✕'}</span> ${msg}`;
+    t.className = `toast show ${type}`;
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+  
+</script>
+</body>
+</html>
