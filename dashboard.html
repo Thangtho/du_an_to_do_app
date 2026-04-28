@@ -239,7 +239,37 @@
     t.className = `toast show ${type}`;
     setTimeout(() => t.classList.remove('show'), 3000);
   }
-  
+  /* Lấy thống kê – gọi API /api/tasks/stats (Lương) */
+  async function loadStats() {
+    try {
+      const res  = await fetch('/api/tasks/stats', { headers: headers() });
+      if (res.status === 401) { logout(); return; }
+      const data = await res.json();
+      document.getElementById('sTotal').textContent = data.total;
+      document.getElementById('sTodo').textContent  = data.todo;
+      document.getElementById('sIP').textContent    = data.in_progress;
+      document.getElementById('sDone').textContent  = data.done;
+      document.getElementById('sOv').textContent    = data.overdue;
+    } catch {}
+  }
+
+  /* Lấy danh sách task – gọi API /api/tasks?status=... (Lương) */
+  async function loadTasks() {
+    try {
+      const url  = currentFilter === 'all'
+        ? '/api/tasks'
+        : `/api/tasks?status=${currentFilter}`;
+      const res  = await fetch(url, { headers: headers() });
+      if (res.status === 401) { logout(); return; }
+      const data = await res.json();
+      tasks = data.tasks || [];
+      render();
+    } catch {
+      document.getElementById('taskGrid').innerHTML =
+        `<div class="empty-state"><div class="ei">⚠️</div><p>Lỗi kết nối server</p></div>`;
+    }
+  }
+
 </script>
 </body>
 </html>
