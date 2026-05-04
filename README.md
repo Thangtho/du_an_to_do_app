@@ -170,13 +170,16 @@ GET /api/tasks?priority=high
 ## 🖼️ Sơ đồ UML
 
 ### Class Diagram
-![Class Diagram](docs/uml_class.png)
+<img width="1350" height="960" alt="uml_class" src="https://github.com/user-attachments/assets/7e2bbc5f-4787-4c0e-9e7d-d39fd151b6a2" />
+
 
 ### Use Case Diagram
-![Use Case Diagram](docs/uml_usecase.png)
+<img width="1350" height="930" alt="uml_usecase" src="https://github.com/user-attachments/assets/3a58729d-9978-4fbc-ad16-4e1bcd05ba43" />
+
 
 ### Sequence Diagram
-![Sequence Diagram](docs/uml_sequence.png)
+<img width="1470" height="1080" alt="uml_sequence" src="https://github.com/user-attachments/assets/3efaa5fc-d8fb-4e1b-b780-81dff36b9aa8" />
+
 
 ---
 
